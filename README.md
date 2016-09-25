@@ -5,14 +5,14 @@ Hubot script to respond to any message with something you defined.
 ## Installation
 
 
-1. install this npm package to your hubot repo `npm i --save hubot-alias`
-2. add "hubot-alias" to your external-scripts.json
+1. install this npm package to your hubot repo `npm i --save hubot-respond`
+2. add "hubot-respond" to your external-scripts.json
 
 ## Commands
 
-`hubot respond to {a text} with {value}` - Creates a respond to respond_to and responds with value
+`hubot respond to {a text} with {value}` - Creates a new respond
 
-`hubot delete respond to {a text}` - Deletes respond respond_to
+`hubot delete respond to {a text}` - Deletes a respond
 
 `hubot list responds` - Lists all responds
 
