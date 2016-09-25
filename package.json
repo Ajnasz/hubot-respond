@@ -1,0 +1,34 @@
+{
+  "name": "hubot-respond",
+  "version": "1.0.0",
+  "description": "Respond to any message with something",
+  "main": "index.js",
+  "scripts": {
+    "test": "$(npm bin)/mocha"
+  },
+  "author": "Lajos Koszti <ajnasz@ajnasz.hu>",
+  "license": "MIT",
+  "devDependencies": {
+    "coffee-script": "^1.11.0",
+    "hubot-test-helper": "^1.5.0",
+    "mocha": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "keywords": [
+    "hubot-scripts",
+    "hubot-respond",
+    "hubot",
+    "slack",
+    "irc",
+    "hipchat",
+    "campfire",
+    "bot",
+    "robot"
+  ]
+}
