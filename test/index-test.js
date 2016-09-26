@@ -36,7 +36,7 @@ describe('hubot-respond', function () {
 			room.destroy();
 		});
 
-		it('should be cool', function () {
+		it('should add respond', function () {
 			return room.user.say('alice', '@hubot respond to foo with bar')
 				.then(() => {
 					let actual = lastMessage(room);
@@ -46,7 +46,7 @@ describe('hubot-respond', function () {
 				});
 		});
 
-		it('it should add another response', function () {
+		it('should add another response', function () {
 			return room.user.say('bob', '@hubot respond to lorem with ipsum')
 				.then(() => {
 					let actual = lastMessage(room);
@@ -119,7 +119,7 @@ describe('hubot-respond', function () {
 
 		it('should respond to unicode characters', () => {
 			return room.user.say('alice', '@hubot respond to ❇ with flower')
-				.then(() => room.user.say('john', ',❇"'))
+				.then(() => room.user.say('john', '-❇"'))
 				.then(() => {
 					let actual = lastMessage(room);
 					let expected = ['hubot', 'flower'];

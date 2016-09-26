@@ -35,7 +35,7 @@ module.exports = function (robot) {
 				.join('|'),
 
 			// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
-			regexText = '(?:\\b|^|\\s|[,.\'"<>{}\\[\\]])(' + keys + ')(?:\\b|\\s|$|[,.\'"<>{}\\[\\]])';
+			regexText = '(?:\\b|^|\\s|[-,.\'"<>{}\\[\\]])(' + keys + ')(?:\\b|\\s|$|[-,.\'"<>{}\\[\\]])';
 
 		respondsRegexp = new RegExp(regexText, 'i');
 
