@@ -24,6 +24,15 @@ module.exports = function (robot) {
 
 	const respondHandled = Symbol('respond handled');
 
+	function setMessageHandled (res) {
+		Object.defineProperty(res.message, respondHandled, {
+			enumerable: false,
+			writable: false,
+			configurable: false,
+			value: true
+		});
+	}
+
 	function refreshRegexp () {
 		if (!brain.getAll().length) {
 			respondsRegexp = null;
@@ -130,13 +139,9 @@ module.exports = function (robot) {
 		res.reply(responds.map((respond) => `respond to ${respond[0]} with ${respond[1]}`).join('\n'));
 	});
 
-	robot.respond(/respond\s+to\s+(.+)\s+with\s+(.+)/i, (res) => {
-		Object.defineProperty(res.message, respondHandled, {
-			enumerable: false,
-			writable: false,
-			configurable: false,
-			value: true
-		});
+	// do not allow | char in trigger expression, because it breaks the regexp
+	robot.respond(/respond\s+to\s+([^|]+)\s+with\s+(.+)/i, (res) => {
+		setMessageHandled(res);
 
 		let key = normalizeTrigger(res.match[1]),
 			value = res.match[2].trim(),

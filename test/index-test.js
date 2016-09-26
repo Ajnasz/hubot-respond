@@ -55,6 +55,16 @@ describe('hubot-respond', function () {
 					return msgEqual(actual, expected);
 				});
 		});
+
+		it('should not add respond with | char', function () {
+			return room.user.say('bob', '@hubot respond to abc|def with ipsum')
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['bob', '@hubot respond to abc|def with ipsum'];
+
+					return msgEqual(actual, expected);
+				});
+		});
 	});
 
 	describe('Responds to matching message', function () {
