@@ -2,7 +2,7 @@
 
 const Helper = require('hubot-test-helper');
 
-const helper = new Helper('../index.js');
+const helper = new Helper('../src/index.js');
 const assert = require('assert');
 
 function equal (actual, expected) {
