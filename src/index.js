@@ -15,7 +15,8 @@
 //   hubot delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
-var TextMessage = require('hubot').TextMessage;
+var hubot = require('hubot/es2015');
+var TextMessage = hubot.TextMessage;
 
 module.exports = function (robot) {
 	'use strict';
