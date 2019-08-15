@@ -22,7 +22,7 @@ function isTextMessage(msg) {
 		if (hubotES2015 && msg instanceof hubotES2015.TextMessage) {
 			return true;
 		}
-	} catch (err) {
+	} catch (e) {
 		if (!(e instanceof Error && e.code === "MODULE_NOT_FOUND")) throw err;
 	}
 
