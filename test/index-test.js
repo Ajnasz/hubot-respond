@@ -79,7 +79,7 @@ describe('hubot-respond', function () {
 
 		it('should respond if the message is just the matching text', () => {
 			return room.user.say('alice', '@hubot respond to foo with bar')
-				.then(room.user.say('john', 'foo'))
+				.then(() => room.user.say('john', 'foo'))
 				.then(() => {
 					let actual = lastMessage(room);
 					let expected = ['hubot', 'bar'];
@@ -151,7 +151,7 @@ describe('hubot-respond', function () {
 
 		it('should say that respond deleted', () => {
 			return room.user.say('alice', '@hubot delete respond to foo')
-				.then(() =>equal(room.messages.length, 4))
+				.then(() => equal(room.messages.length, 4))
 				.then(() => {
 					let actual = lastMessage(room);
 					let expected = ['hubot', '@alice respond to foo deleted'];
