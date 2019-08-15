@@ -15,8 +15,25 @@
 //   hubot delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
-var hubot = require('hubot/es2015');
-var TextMessage = hubot.TextMessage;
+function isTextMessage(msg) {
+	try {
+		const hubotES2015 = require('hubot/es2015');
+
+		if (hubotES2015 && msg instanceof hubotES2015.TextMessage) {
+			return true;
+		}
+	} catch (err) {
+		if (!(e instanceof Error && e.code === "MODULE_NOT_FOUND")) throw err;
+	}
+
+	const hubot = require('hubot');
+
+	if (hubot && msg instanceof hubot.TextMessage) {
+		return true;
+	}
+
+	return false;
+}
 
 module.exports = function (robot) {
 	'use strict';
@@ -161,7 +178,7 @@ module.exports = function (robot) {
 	});
 
 	robot.listen((res) => {
-		if (!(res instanceof TextMessage) || !respondsRegexp || res[respondHandled]) {
+		if (!isTextMessage(res) || !respondsRegexp || res[respondHandled]) {
 			return null;
 		}
 
