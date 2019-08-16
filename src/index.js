@@ -42,6 +42,17 @@ module.exports = function (robot) {
 
 	const respondHandled = Symbol('respond handled');
 
+	function formatMessage(str, args) {
+		return str.replace(/(\{[a-zA-Z0-9]+\})/g, function (i) {
+			var key = i.slice(1, -1);
+			if (key in args) {
+				return args[key];
+			}
+
+			return i;
+		})
+	}
+
 	function setMessageHandled (res) {
 		Object.defineProperty(res.message, respondHandled, {
 			enumerable: false,
@@ -187,8 +198,9 @@ module.exports = function (robot) {
 		return respondMatch;
 
 	}, (res) => {
-		let match = res.match[1].toLowerCase();
-		res.send(brain.get(match));
+		const match = res.match[1].toLowerCase();
+		const text = brain.get(match);
+		res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
 
 		robot.logger.debug(`respond matched: ${match}`);
 	});

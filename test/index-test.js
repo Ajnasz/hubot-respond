@@ -139,6 +139,48 @@ describe('hubot-respond', function () {
 		});
 	});
 
+	describe('Respond with dynamic content', function () {
+		beforeEach(function () {
+			room = helper.createRoom();
+		});
+		afterEach(function () {
+			room.destroy();
+		});
+
+		it('should respond with sender\'s username', () => {
+			return room.user.say('alice', '@hubot respond to hi with Hi {sender}')
+				.then(()=> room.user.say('john', 'hi'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['hubot', 'Hi john'];
+
+					return msgEqual(actual, expected);
+				});
+		});
+
+		it('should respond with room name', () => {
+			return room.user.say('alice', '@hubot respond to hi with Welcome in {room}')
+				.then(()=> room.user.say('john', 'hi'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['hubot', `Welcome in ${room.name}`];
+
+					return msgEqual(actual, expected);
+				});
+		});
+
+		it('should respond with room and sender name', () => {
+			return room.user.say('alice', '@hubot respond to hi with Welcome @{sender} in {room}')
+				.then(()=> room.user.say('john', 'hi'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['hubot', `Welcome @john in ${room.name}`];
+
+					return msgEqual(actual, expected);
+				});
+		})
+	});
+
 	describe('Delete respond', function () {
 		before(function () {
 			room = helper.createRoom();
