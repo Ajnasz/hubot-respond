@@ -14,8 +14,6 @@ module.exports = function(robot, scripts) {
 			ref = fs.readdirSync(scriptsPath);
 			results = [];
 
-			console.log(ref);
-
 
 			for (i = 0, len = ref.length; i < len; i++) {
 				script = ref[i];
