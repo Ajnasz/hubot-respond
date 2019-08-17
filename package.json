@@ -38,5 +38,12 @@
   "bugs": {
     "url": "https://github.com/Ajnasz/hubot-respond/issues"
   },
-  "homepage": "https://github.com/Ajnasz/hubot-respond#readme"
+  "homepage": "https://github.com/Ajnasz/hubot-respond#readme",
+  "files": [
+      "LICENSE",
+      "README.md",
+      "index.js",
+      "package.json",
+      "src/index.js"
+  ]
 }
