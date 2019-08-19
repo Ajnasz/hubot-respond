@@ -12,6 +12,7 @@
 //
 // Commands:
 //   hubot respond to {a text} with {value} - Creates a respond to respond_to and responds with value
+//   hubot here respond to {a text} with {value} - Creates a respond to respond_to and responds with value but only in the current room
 //   hubot delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
@@ -19,7 +20,9 @@
 module.exports = function (robot) {
 	'use strict';
 
-	let brain, respondsRegexp;
+	let brain;
+
+	let responds = [];
 
 	const respondHandled = Symbol('respond handled');
 
@@ -31,7 +34,7 @@ module.exports = function (robot) {
 			}
 
 			return i;
-		})
+		});
 	}
 
 	function setMessageHandled (res) {
@@ -45,7 +48,7 @@ module.exports = function (robot) {
 
 	// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
 	function createRespondRegexp(respond) {
-		return new RegExp(`(?:\\b|^|\\s|[-,.\'"<>{}\\[\\]])(${respond})(?:\\b|\\s|$|[-,.\'"<>{}\\[\\]])`, 'i');
+		return new RegExp(`(?:\\b|^|\\s|[-,.'"<>{}\\[\\]])(${respond})(?:\\b|\\s|$|[-,.'"<>{}\\[\\]])`, 'i');
 
 	}
 
@@ -59,14 +62,14 @@ module.exports = function (robot) {
 	}
 
 	function migrate () {
-		let migrations = [
+		const migrations = [
 			function () {
 				if (robot.brain.data.responds) {
 					let responds = robot.brain.data.responds;
 					delete robot.brain.data.responds;
 					robot.brain.set('responds', responds || Object.create(null));
 				}
-			}
+			},
 		];
 
 		let lastMigratedIndex = robot.brain.get('responds_migrations') || 0;
@@ -116,7 +119,32 @@ module.exports = function (robot) {
 				}
 
 				return Object.keys(responds).map((name) => [name, responds[name]]);
-			}
+			},
+
+			getRespondRooms (name) {
+				const respondRooms = robot.brain.get('respondRooms') || Object.create(null);
+
+				return respondRooms[name];
+			},
+
+			setRoom (name, room) {
+				let respondRooms = robot.brain.get('respondRooms') || Object.create(null);
+				robot.brain.set('respondRooms', new Set([room].concat(respondRooms[name])));
+			},
+
+			unsetRoom (name, room) {
+				let respondRooms = robot.brain.get('respondRooms') || Object.create(null);
+				const currentRooms = new Set(respondRooms[name]);
+				currentRooms.delete(room);
+
+				if (currentRooms.size > 0) {
+					respondRooms[name] = currentRooms;
+				} else {
+					delete respondRooms[name];
+				}
+
+				robot.brain.set('respondRooms', respondRooms);
+			},
 		};
 	}());
 
@@ -137,16 +165,15 @@ module.exports = function (robot) {
 			return res.reply('No respond has been set yet.');
 		}
 
-		// robot.logger.debug(responds);
-
 		res.reply(responds.map((respond) => `respond to ${respond[0]} with ${respond[1]}`).join('\n'));
 	});
 
-	robot.respond(/respond\s+to\s+(.+)\s+with\s+(.+)/i, (res) => {
+	robot.respond(/(here\s+)?respond\s+to\s+(.+)\s+with\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 
-		let key = normalizeTrigger(res.match[1]),
-			value = res.match[2].trim(),
+		let key = normalizeTrigger(res.match[2]),
+			value = res.match[3].trim(),
+			here = !!res.match[1],
 			updated = false;
 
 		// delete previous respond
@@ -157,6 +184,11 @@ module.exports = function (robot) {
 
 		// by postponing add, the robot listen will not respond to the query.
 		brain.set(key, value);
+
+		if (here) {
+			brain.setRoom(key, res.message.room);
+		}
+
 		res.reply(updated ? 'Respond updated' : 'Respond added');
 		robot.logger.debug(`new respond added ${key}=${value}`);
 	});
@@ -175,8 +207,14 @@ module.exports = function (robot) {
 	}, (res) => {
 		const match = res.match;
 		const text = brain.get(res.match);
-		res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
+		const respondRooms = brain.getRespondRooms(match);
 
-		robot.logger.debug(`respond matched: ${match}`);
+		const allowedInRoom = !respondRooms || respondRooms.includes(res.message.room);
+
+		if (allowedInRoom) {
+			res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
+
+			robot.logger.debug(`respond matched: ${match}`);
+		}
 	});
 };

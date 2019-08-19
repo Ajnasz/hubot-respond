@@ -29,7 +29,7 @@ describe('hubot-respond', function () {
 	describe('Add new responds', function () {
 
 		before(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 		});
 
 		after(function () {
@@ -59,7 +59,7 @@ describe('hubot-respond', function () {
 
 	describe('Responds to matching message', function () {
 		before(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
@@ -131,7 +131,7 @@ describe('hubot-respond', function () {
 
 	describe('Respond with dynamic content', function () {
 		beforeEach(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 		});
 		afterEach(function () {
 			room.destroy();
@@ -168,12 +168,32 @@ describe('hubot-respond', function () {
 
 					return msgEqual(actual, expected);
 				});
-		})
+		});
+
+		it('sould respond only in room', () => {
+			const room2 = helper.createRoom({ name: 'room2', httpd: false });
+
+			return room.user.say('alice', '@hubot here respond to helo with Helo')
+				.then(() => room.user.say('john', 'helo'))
+				.then(() => {
+					const actual = lastMessage(room);
+					const expected = ['hubot', 'Helo'];
+
+					return msgEqual(actual, expected);
+				})
+				.then(() => room2.user.say('jim', 'helo'))
+				.then(() => {
+					const actual = lastMessage(room2);
+					const expected = ['jim', 'helo'];
+
+					return msgEqual(actual, expected);
+				});
+		});
 	});
 
 	describe('Delete respond', function () {
 		before(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
@@ -200,7 +220,7 @@ describe('hubot-respond', function () {
 
 	describe('Update respond', function () {
 		before(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
@@ -233,7 +253,7 @@ describe('hubot-respond', function () {
 
 	describe('List responds', function () {
 		before(function () {
-			room = helper.createRoom();
+			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar')
 				.then(() => room.user.say('bob', '@hubot respond to lorem with ipsum'));
 		});
