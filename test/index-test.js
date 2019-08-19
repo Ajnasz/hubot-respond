@@ -138,6 +138,17 @@ describe('hubot-respond', function () {
 					return msgEqual(actual, expected);
 				});
 		});
+
+		it('should match to the first with keyword and keep the others', () => {
+			return room.user.say('alice', '@hubot respond to hi with hi there with more with')
+				.then(() => room.user.say('john', 'hi'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['hubot', 'hi there with more with'];
+
+					return msgEqual(actual, expected);
+				});
+		});
 	});
 
 	describe('Respond with dynamic content', function () {

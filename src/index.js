@@ -170,7 +170,7 @@ module.exports = function (robot) {
 		res.reply(responds.map((respond) => `respond to ${respond[0]} with ${respond[1]}`).join('\n'));
 	});
 
-	robot.respond(/(here\s+)?respond\s+to\s+(.+)\s+with\s+(.+)/i, (res) => {
+	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 
 		let key = normalizeTrigger(res.match[2]),
