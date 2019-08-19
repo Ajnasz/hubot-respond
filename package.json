@@ -10,6 +10,7 @@
   "license": "MIT",
   "devDependencies": {
     "coffee-script": "^1.11.0",
+    "eslint": "^6.2.0",
     "hubot-test-helper": "^1.5.0",
     "mocha": "^6.2.0"
   },
