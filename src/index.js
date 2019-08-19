@@ -15,25 +15,6 @@
 //   hubot delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
-function isTextMessage(msg) {
-	try {
-		const hubotES2015 = require('hubot/es2015');
-
-		if (hubotES2015 && msg instanceof hubotES2015.TextMessage) {
-			return true;
-		}
-	} catch (e) {
-		if (!(e instanceof Error && e.code === "MODULE_NOT_FOUND")) throw err;
-	}
-
-	const hubot = require('hubot');
-
-	if (hubot && msg instanceof hubot.TextMessage) {
-		return true;
-	}
-
-	return false;
-}
 
 module.exports = function (robot) {
 	'use strict';
@@ -62,22 +43,15 @@ module.exports = function (robot) {
 		});
 	}
 
-	function refreshRegexp () {
-		if (!brain.getAll().length) {
-			respondsRegexp = null;
-			return;
-		}
+	// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
+	function createRespondRegexp(respond) {
+		return new RegExp(`(?:\\b|^|\\s|[-,.\'"<>{}\\[\\]])(${respond})(?:\\b|\\s|$|[-,.\'"<>{}\\[\\]])`, 'i');
 
-		let keys = brain.getAll()
-				.map(respond => respond[0])
-				.join('|'),
+	}
 
-			// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
-			regexText = '(?:\\b|^|\\s|[-,.\'"<>{}\\[\\]])(' + keys + ')(?:\\b|\\s|$|[-,.\'"<>{}\\[\\]])';
-
-		respondsRegexp = new RegExp(regexText, 'i');
-
-		robot.logger.debug('respond regexp: ', respondsRegexp);
+	function refreshResponds () {
+		const all = brain.getAll();
+		responds = Array.from(new Set(all.map(a => a[0])));
 	}
 
 	function normalizeTrigger (trigger) {
@@ -113,7 +87,7 @@ module.exports = function (robot) {
 			robot.brain.set('responds', Object.create(null));
 		}
 
-		robot.brain.on('loaded', refreshRegexp);
+		robot.brain.on('loaded', refreshResponds);
 
 		robot.brain.once('loaded', migrate);
 
@@ -168,8 +142,7 @@ module.exports = function (robot) {
 		res.reply(responds.map((respond) => `respond to ${respond[0]} with ${respond[1]}`).join('\n'));
 	});
 
-	// do not allow | char in trigger expression, because it breaks the regexp
-	robot.respond(/respond\s+to\s+([^|]+)\s+with\s+(.+)/i, (res) => {
+	robot.respond(/respond\s+to\s+(.+)\s+with\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 
 		let key = normalizeTrigger(res.match[1]),
@@ -189,17 +162,19 @@ module.exports = function (robot) {
 	});
 
 	robot.listen((res) => {
-		if (!isTextMessage(res) || !respondsRegexp || res[respondHandled]) {
+		if (!res.text || responds.length < 1 || res[respondHandled]) {
 			return null;
 		}
 
-		let respondMatch = res.text.match(respondsRegexp);
+		const match = Array.from(responds).find((matcher) => {
+			const re = createRespondRegexp(matcher);
+			return re.test(res.text);
+		});
 
-		return respondMatch;
-
+		return match && match.toLowerCase();
 	}, (res) => {
-		const match = res.match[1].toLowerCase();
-		const text = brain.get(match);
+		const match = res.match;
+		const text = brain.get(res.match);
 		res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
 
 		robot.logger.debug(`respond matched: ${match}`);
