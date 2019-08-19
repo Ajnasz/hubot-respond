@@ -26,15 +26,17 @@ module.exports = function (robot) {
 
 	const respondHandled = Symbol('respond handled');
 
+	const INTERPOLATION_REGEXP = /(\{[a-zA-Z0-9]+\})/g;
+
 	function formatMessage(str, args) {
-		return str.replace(/(\{[a-zA-Z0-9]+\})/g, function (i) {
-			var key = i.slice(1, -1);
+		return str.replace(INTERPOLATION_REGEXP, function (i) {
+			const key = i.slice(1, -1);
 			if (key in args) {
 				return args[key];
 			}
 
 			return i;
-		});
+		}).replace('\\n', '\n');
 	}
 
 	function setMessageHandled (res) {

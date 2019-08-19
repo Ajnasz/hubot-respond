@@ -127,6 +127,17 @@ describe('hubot-respond', function () {
 					return msgEqual(actual, expected);
 				});
 		});
+
+		it('should respond with multiline messages', () => {
+			return room.user.say('alice', '@hubot respond to hi with hi\\nthere')
+				.then(() => room.user.say('john', 'hi"'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['hubot', 'hi\nthere'];
+
+					return msgEqual(actual, expected);
+				});
+		});
 	});
 
 	describe('Respond with dynamic content', function () {
