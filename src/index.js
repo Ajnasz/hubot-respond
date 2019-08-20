@@ -173,8 +173,6 @@ module.exports = function (robot) {
 				if (robot.brain.get('responds')) {
 					let responds = robot.brain.get('responds') || Object.create(null);
 
-					delete robot.brain.data.responds;
-
 					robot.brain.set('responds', Object.keys(responds).reduce((out, key) => {
 						const value = responds[key];
 
@@ -243,7 +241,7 @@ module.exports = function (robot) {
 		let updated = false;
 
 		// delete previous respond
-		if (brain.get(key)) {
+		if (brain.get(key).value) {
 			brain.unset(key);
 			updated = true;
 		}
