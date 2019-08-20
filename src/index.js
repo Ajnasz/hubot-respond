@@ -51,7 +51,7 @@ module.exports = function (robot) {
 
 		robot.brain.once('loaded', migrate);
 
-		function createRespond(name) {
+		function getRespond(name) {
 			const responds = robot.brain.get('responds');
 			const oldRespond = responds[name];
 			const respond = Object.create(Respond);
@@ -62,7 +62,7 @@ module.exports = function (robot) {
 
 		return {
 			get (name) {
-				return createRespond(name);
+				return getRespond(name);
 			},
 
 			set (name, value, room = null) {
@@ -106,7 +106,7 @@ module.exports = function (robot) {
 
 			unsetRespondRoom (name, room) {
 				const responds = robot.brain.get('responds');
-				const respond = createRespond(name);
+				const respond = getRespond(name);
 
 				respond.removeRoom(room);
 				if (respond.rooms.length) {
@@ -170,14 +170,16 @@ module.exports = function (robot) {
 			},
 
 			function () {
-				if (robot.brain.data.responds) {
-					let responds = robot.brain.data.responds || Object.create(null);
+				if (robot.brain.get('responds')) {
+					let responds = robot.brain.get('responds') || Object.create(null);
+
 					delete robot.brain.data.responds;
+
 					robot.brain.set('responds', Object.keys(responds).reduce((out, key) => {
 						const value = responds[key];
 
 						if (typeof value !== 'object') {
-							out[key] = { value };
+							out[key] = { value, rooms: [] };
 						}
 
 						return out;
