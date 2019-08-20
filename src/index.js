@@ -14,15 +14,111 @@
 //   hubot respond to {a text} with {value} - Creates a respond to respond_to and responds with value
 //   hubot here respond to {a text} with {value} - Creates a respond to respond_to and responds with value but only in the current room
 //   hubot delete respond to {a text} - Deletes respond respond_to
+//   hubot from here delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
 
 module.exports = function (robot) {
 	'use strict';
 
-	let brain;
+	const Respond = {
+		addRoom(room) {
+			const rooms = new Set(this.rooms);
+			rooms.add(room);
 
-	let responds = [];
+			this.rooms = Array.from(rooms);
+		},
+
+		removeRoom(room) {
+			const rooms = new Set(this.rooms);
+			rooms.delete(room);
+
+			this.rooms = Array.from(rooms);
+		},
+
+		toObject() {
+			return {
+				rooms: this.rooms || [],
+				value: this.value,
+			};
+		},
+	};
+
+	const brain = (function () {
+		if (!robot.brain.get('responds')) {
+			robot.brain.set('responds', Object.create(null));
+		}
+
+		robot.brain.once('loaded', migrate);
+
+		function createRespond(name) {
+			const responds = robot.brain.get('responds');
+			const oldRespond = responds[name];
+			const respond = Object.create(Respond);
+			Object.assign(respond, oldRespond);
+
+			return respond;
+		}
+
+		return {
+			get (name) {
+				return createRespond(name);
+			},
+
+			set (name, value, room = null) {
+				const responds = robot.brain.get('responds') || Object.create(null);
+				const newValue = Object.create(Respond);
+
+				Object.assign(newValue, { value });
+
+				if (room) {
+					newValue.addRoom(room);
+				}
+
+				responds[name] = newValue.toObject();
+				robot.brain.set('responds', responds);
+			},
+
+			unset (name) {
+				let responds = robot.brain.get('responds');
+				delete responds[name];
+				robot.brain.set('responds', responds);
+			},
+
+			getAll () {
+				let responds = robot.brain.get('responds');
+				if (responds === null) {
+					return [];
+				}
+
+				return Object.keys(responds).map((name) => [name, responds[name].value]);
+			},
+
+			getRespondRooms (name) {
+				const respond = robot.brain.get('responds')[name];
+
+				if (respond) {
+					return respond.rooms;
+				}
+
+				return null;
+			},
+
+			unsetRespondRoom (name, room) {
+				const responds = robot.brain.get('responds');
+				const respond = createRespond(name);
+
+				respond.removeRoom(room);
+				if (respond.rooms.length) {
+					responds[name] = respond.toObject();
+				} else {
+					delete responds[name];
+				}
+
+				robot.brain.set('responds', responds);
+			},
+		};
+	}());
 
 	const respondHandled = Symbol('respond handled');
 
@@ -48,18 +144,18 @@ module.exports = function (robot) {
 		});
 	}
 
+	function isMessageAllowedInRoom(brain, room, key) {
+		const respond = brain.get(key);
+		return !respond || respond.rooms.length === 0 || respond.rooms.includes(room);
+	}
+
 	// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
 	function createRespondRegexp(respond) {
 		return new RegExp(`(?:\\b|^|\\s|[-,.'"<>{}\\[\\]])(${respond})(?:\\b|\\s|$|[-,.'"<>{}\\[\\]])`, 'i');
 
 	}
 
-	function refreshResponds () {
-		const all = brain.getAll();
-		responds = Array.from(new Set(all.map(a => a[0])));
-	}
-
-	function normalizeTrigger (trigger) {
+	function normalizeTrigger(trigger) {
 		return trigger.trim().toLowerCase();
 	}
 
@@ -70,6 +166,22 @@ module.exports = function (robot) {
 					let responds = robot.brain.data.responds;
 					delete robot.brain.data.responds;
 					robot.brain.set('responds', responds || Object.create(null));
+				}
+			},
+
+			function () {
+				if (robot.brain.data.responds) {
+					let responds = robot.brain.data.responds || Object.create(null);
+					delete robot.brain.data.responds;
+					robot.brain.set('responds', Object.keys(responds).reduce((out, key) => {
+						const value = responds[key];
+
+						if (typeof value !== 'object') {
+							out[key] = { value };
+						}
+
+						return out;
+					}, Object.create(null)));
 				}
 			},
 		];
@@ -87,77 +199,26 @@ module.exports = function (robot) {
 		robot.logger.debug('last migrated', robot.brain.get('responds_migrations'));
 	}
 
-	brain = (function () {
-		if (!robot.brain.get('responds')) {
-			robot.brain.set('responds', Object.create(null));
-		}
+	robot.respond(/from\s+here\s+delete\s+respond\s+to\s+(.+)/, (res) => {
+		setMessageHandled(res);
+		const key = normalizeTrigger(res.match[1]);
 
-		robot.brain.on('loaded', refreshResponds);
-
-		robot.brain.once('loaded', migrate);
-
-		return {
-			get (name) {
-				let responds = robot.brain.get('responds');
-				return responds && responds[name];
-			},
-
-			set (name, value) {
-				let responds = robot.brain.get('responds') || Object.create(null);
-				responds[name] = value;
-				robot.brain.set('responds', responds);
-			},
-
-			unset (name) {
-				let responds = robot.brain.get('responds');
-				delete responds[name];
-				robot.brain.set('responds', responds);
-			},
-
-			getAll () {
-				let responds = robot.brain.get('responds');
-				if (responds === null) {
-					return [];
-				}
-
-				return Object.keys(responds).map((name) => [name, responds[name]]);
-			},
-
-			getRespondRooms (name) {
-				const respondRooms = robot.brain.get('respondRooms') || Object.create(null);
-
-				return respondRooms[name];
-			},
-
-			setRoom (name, room) {
-				let respondRooms = robot.brain.get('respondRooms') || Object.create(null);
-				robot.brain.set('respondRooms', new Set([room].concat(respondRooms[name])));
-			},
-
-			unsetRoom (name, room) {
-				let respondRooms = robot.brain.get('respondRooms') || Object.create(null);
-				const currentRooms = new Set(respondRooms[name]);
-				currentRooms.delete(room);
-
-				if (currentRooms.size > 0) {
-					respondRooms[name] = currentRooms;
-				} else {
-					delete respondRooms[name];
-				}
-
-				robot.brain.set('respondRooms', respondRooms);
-			},
-		};
-	}());
+		brain.unsetRespondRoom(key, res.message.room);
+		res.reply(`respond to ${key} deleted from room ${res.message.room}`);
+	});
 
 	robot.respond(/delete\s+respond\s+to\s+(.+)/, (res) => {
-		let key = normalizeTrigger(res.match[1]);
+		setMessageHandled(res);
+		const key = normalizeTrigger(res.match[1]);
 
 		if (brain.get(key)) {
 			brain.unset(key);
 
 			res.reply(`respond to ${key} deleted`);
+			return;
 		}
+
+		res.reply('respond not found');
 	});
 
 	robot.respond(/list\s+responds/, (res) => {
@@ -173,10 +234,11 @@ module.exports = function (robot) {
 	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 
-		let key = normalizeTrigger(res.match[2]),
-			value = res.match[3].trim(),
-			here = !!res.match[1],
-			updated = false;
+		const key = normalizeTrigger(res.match[2]);
+		const value = res.match[3].trim();
+		const here = !!res.match[1];
+
+		let updated = false;
 
 		// delete previous respond
 		if (brain.get(key)) {
@@ -185,18 +247,20 @@ module.exports = function (robot) {
 		}
 
 		// by postponing add, the robot listen will not respond to the query.
-		brain.set(key, value);
-
-		if (here) {
-			brain.setRoom(key, res.message.room);
-		}
+		brain.set(key, value, here && res.message.room);
 
 		res.reply(updated ? 'Respond updated' : 'Respond added');
 		robot.logger.debug(`new respond added ${key}=${value}`);
 	});
 
 	robot.listen((res) => {
-		if (!res.text || responds.length < 1 || res[respondHandled]) {
+		if (!res.text || res[respondHandled]) {
+			return null;
+		}
+
+		const responds = Array.from(new Set(brain.getAll().map(a => a[0])));
+
+		if (responds.length < 1) {
 			return null;
 		}
 
@@ -208,10 +272,9 @@ module.exports = function (robot) {
 		return match && match.toLowerCase();
 	}, (res) => {
 		const match = res.match;
-		const text = brain.get(res.match);
-		const respondRooms = brain.getRespondRooms(match);
+		const text = brain.get(res.match).value;
 
-		const allowedInRoom = !respondRooms || respondRooms.includes(res.message.room);
+		const allowedInRoom = isMessageAllowedInRoom(brain, res.message.room, match);
 
 		if (allowedInRoom) {
 			res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));

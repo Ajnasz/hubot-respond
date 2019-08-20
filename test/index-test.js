@@ -192,25 +192,31 @@ describe('hubot-respond', function () {
 				});
 		});
 
-		it('sould respond only in room', () => {
-			const room2 = helper.createRoom({ name: 'room2', httpd: false });
+		describe('multi room', () => {
+			let room2;
+			before(() => {
+				room2 = helper.createRoom({ name: 'room2', httpd: false });
+			});
+			after(() => room2.destroy())
 
-			return room.user.say('alice', '@hubot here respond to helo with Helo')
-				.then(() => room.user.say('john', 'helo'))
-				.then(() => {
-					const actual = lastMessage(room);
-					const expected = ['hubot', 'Helo'];
+			it('sould respond only in room', () => {
+				return room.user.say('alice', '@hubot here respond to helo with Helo')
+					.then(() => room.user.say('john', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room);
+						const expected = ['hubot', 'Helo'];
 
-					return msgEqual(actual, expected);
-				})
-				.then(() => room2.user.say('jim', 'helo'))
-				.then(() => {
-					const actual = lastMessage(room2);
-					const expected = ['jim', 'helo'];
+						return msgEqual(actual, expected);
+					})
+					.then(() => room2.user.say('jim', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room2);
+						const expected = ['jim', 'helo'];
 
-					return msgEqual(actual, expected);
-				});
-		});
+						return msgEqual(actual, expected);
+					});
+			});
+		})
 	});
 
 	describe('Delete respond', function () {
