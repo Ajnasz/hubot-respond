@@ -58,12 +58,12 @@ describe('hubot-respond', function () {
 	});
 
 	describe('Responds to matching message', function () {
-		before(function () {
+		beforeEach(function () {
 			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
-		after(function () {
+		afterEach(function () {
 			room.destroy();
 		});
 
@@ -194,38 +194,63 @@ describe('hubot-respond', function () {
 
 		describe('multi room', () => {
 			let room2;
-			before(() => {
+			beforeEach(() => {
 				room2 = helper.createRoom({ name: 'room2', httpd: false });
 			});
-			after(() => room2.destroy())
+			afterEach(() => room2.destroy());
 
 			it('sould respond only in room', () => {
-				return room.user.say('alice', '@hubot here respond to helo with Helo')
+				return Promise.all([
+					room.user.say('alice', '@hubot here respond to helo with Helo1'),
+					room2.user.say('alice', '@hubot here respond to helo with Helo2'),
+				])
 					.then(() => room.user.say('john', 'helo'))
 					.then(() => {
 						const actual = lastMessage(room);
-						const expected = ['hubot', 'Helo'];
+						const expected = ['hubot', 'Helo1'];
 
 						return msgEqual(actual, expected);
 					})
 					.then(() => room2.user.say('jim', 'helo'))
 					.then(() => {
 						const actual = lastMessage(room2);
+						const expected = ['hubot', 'Helo2'];
+
+						return msgEqual(actual, expected);
+					});
+			});
+
+			it('sould delete from room', () => {
+				return Promise.all([
+					room.user.say('alice', '@hubot here respond to helo with Helo1'),
+					room2.user.say('alice', '@hubot here respond to helo with Helo2'),
+				])
+					.then(() => room.user.say('alice', '@hubot from here delete respond to helo'))
+					.then(() => room2.user.say('jim', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room2);
+						const expected = ['hubot', 'Helo2'];
+
+						return msgEqual(actual, expected);
+					})
+					.then(() => room.user.say('jim', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room);
 						const expected = ['jim', 'helo'];
 
 						return msgEqual(actual, expected);
 					});
 			});
-		})
+		});
 	});
 
 	describe('Delete respond', function () {
-		before(function () {
+		beforeEach(function () {
 			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
-		after(function () {
+		afterEach(function () {
 			room.destroy();
 		});
 
@@ -241,18 +266,24 @@ describe('hubot-respond', function () {
 		});
 
 		it('should not respond to text anymore', () => {
-			let len = room.messages.length;
-			return room.user.say('alice', 'foo').then(() => equal(room.messages.length, len + 1));
+			return room.user.say('alice', '@hubot delete respond to foo')
+				.then(() => room.user.say('alice', 'foo'))
+				.then(() => {
+					let actual = lastMessage(room);
+					let expected = ['alice', 'foo'];
+
+					return msgEqual(actual, expected);
+				});
 		});
 	});
 
 	describe('Update respond', function () {
-		before(function () {
+		beforeEach(function () {
 			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar');
 		});
 
-		after(function () {
+		afterEach(function () {
 			room.destroy();
 		});
 
@@ -268,11 +299,11 @@ describe('hubot-respond', function () {
 		});
 
 		it('should answer with the new respond to the text', () => {
-			return room.user.say('alice', 'foo')
-				.then(() => equal(room.messages.length, 6))
+			return room.user.say('alice', '@hubot respond to foo with baz')
+				.then(() => room.user.say('alice', 'foo'))
 				.then(() => {
-					let actual = lastMessage(room);
-					let expected = ['hubot', 'baz'];
+					const actual = lastMessage(room);
+					const expected = ['hubot', 'baz'];
 
 					return msgEqual(actual, expected);
 				});
@@ -280,13 +311,13 @@ describe('hubot-respond', function () {
 	});
 
 	describe('List responds', function () {
-		before(function () {
+		beforeEach(function () {
 			room = helper.createRoom({ httpd: false });
 			return room.user.say('alice', '@hubot respond to foo with bar')
 				.then(() => room.user.say('bob', '@hubot respond to lorem with ipsum'));
 		});
 
-		after(function () {
+		afterEach(function () {
 			room.destroy();
 		});
 

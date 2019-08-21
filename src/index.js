@@ -21,12 +21,25 @@
 module.exports = function (robot) {
 	'use strict';
 
-	const Respond = {
-		addRoom(room) {
-			const rooms = new Set(this.rooms);
-			rooms.add(room);
+	const respondHandled = Symbol('respond handled');
 
-			this.rooms = Array.from(rooms);
+	const INTERPOLATION_REGEXP = /(\{[a-zA-Z0-9]+\})/g;
+
+	function findIndex(array, cb, index = -1) {
+		if (array.length === 0) {
+			return -1;
+		}
+
+		if (cb(array[0])) {
+			return index + 1;
+		}
+
+		return findIndex(array.slice(1), cb, index + 1);
+	}
+
+	const Respond = {
+		setRoom(room) {
+			this.room = room;
 		},
 
 		removeRoom(room) {
@@ -36,93 +49,97 @@ module.exports = function (robot) {
 			this.rooms = Array.from(rooms);
 		},
 
+		toRegExp() {
+			return createRespondRegexp(this.name);
+		},
+
 		toObject() {
 			return {
-				rooms: this.rooms || [],
+				room: this.room || null,
 				value: this.value,
+				name: this.name,
 			};
 		},
 	};
 
-	const brain = (function () {
+	const Responds = (function () {
 		if (!robot.brain.get('responds')) {
-			robot.brain.set('responds', Object.create(null));
+			robot.brain.set('responds', []);
 		}
 
 		robot.brain.once('loaded', migrate);
 
-		function getRespond(name) {
-			const responds = robot.brain.get('responds');
-			const oldRespond = responds[name];
+		function areRespondsEqual(res1, res2) {
+			return res1.name === res2.name && res1.room === res2.room;
+		}
+
+		function isRespondEligibleForRoom(respond, room) {
+			return respond.room === room || !respond.room;
+		}
+
+		function saveRespond(respond) {
+			const responds = robot.brain.get('responds') || [];
+			const index = findIndex(responds, res => areRespondsEqual(res, { name: respond.name, room: respond.room }));
+
+			if (index > -1) {
+				responds[index] = respond;
+				robot.brain.set('responds', responds);
+				return;
+			}
+
+			robot.brain.set('responds', responds.concat(respond));
+		}
+
+		function rawRespondToRespond(rawRespond) {
 			const respond = Object.create(Respond);
-			Object.assign(respond, oldRespond);
+			Object.assign(respond, rawRespond);
+			return respond;
+		}
+
+		function findRespond(name, room = null, match = null) {
+			const responds = Responds.getAll();
+
+			const search = match ? (respond) => respond.toRegExp().test(match) : (respond) => respond.name === name;
+
+			const respond = responds.find(respond => search(respond) && isRespondEligibleForRoom(respond, room));
 
 			return respond;
 		}
 
 		return {
-			get (name) {
-				return getRespond(name);
+			findOne({ name, room = null, match = null }) {
+				return findRespond(name, room, match);
 			},
 
-			set (name, value, room = null) {
-				const responds = robot.brain.get('responds') || Object.create(null);
-				const newValue = Object.create(Respond);
+			find({ name, room }) {
+				const responds = Responds.getAll();
 
-				Object.assign(newValue, { value });
-
-				if (room) {
-					newValue.addRoom(room);
-				}
-
-				responds[name] = newValue.toObject();
-				robot.brain.set('responds', responds);
+				return responds
+					.filter(respond => respond.name === name && isRespondEligibleForRoom(respond, room));
 			},
 
-			unset (name) {
-				let responds = robot.brain.get('responds');
-				delete responds[name];
-				robot.brain.set('responds', responds);
+			upsert({ name, value, room = null }) {
+				saveRespond({ name, value, room });
 			},
 
-			getAll () {
-				let responds = robot.brain.get('responds');
+			remove({ name, room = null }) {
+				const responds = Responds.getAll();
+
+				robot.brain.set('responds', responds.filter((respond) => {
+					return !(respond.name === name && (!room || respond.room === room));
+				}).map(r => r.toObject()));
+			},
+
+			getAll() {
+				const responds = robot.brain.get('responds');
 				if (responds === null) {
 					return [];
 				}
 
-				return Object.keys(responds).map((name) => [name, responds[name].value]);
-			},
-
-			getRespondRooms (name) {
-				const respond = robot.brain.get('responds')[name];
-
-				if (respond) {
-					return respond.rooms;
-				}
-
-				return null;
-			},
-
-			unsetRespondRoom (name, room) {
-				const responds = robot.brain.get('responds');
-				const respond = getRespond(name);
-
-				respond.removeRoom(room);
-				if (respond.rooms.length) {
-					responds[name] = respond.toObject();
-				} else {
-					delete responds[name];
-				}
-
-				robot.brain.set('responds', responds);
+				return responds.map(rawRespondToRespond);
 			},
 		};
 	}());
-
-	const respondHandled = Symbol('respond handled');
-
-	const INTERPOLATION_REGEXP = /(\{[a-zA-Z0-9]+\})/g;
 
 	function formatMessage(str, args) {
 		return str.replace(INTERPOLATION_REGEXP, function (i) {
@@ -144,11 +161,6 @@ module.exports = function (robot) {
 		});
 	}
 
-	function isMessageAllowedInRoom(brain, room, key) {
-		const respond = brain.get(key);
-		return !respond || respond.rooms.length === 0 || respond.rooms.includes(room);
-	}
-
 	// ^|\\s|[,.\'"<>{}\\[\\]] and $|\\s|[,.\'"<>{}\\[\\]] is dumb word boundary for unicode chars
 	function createRespondRegexp(respond) {
 		return new RegExp(`(?:\\b|^|\\s|[-,.'"<>{}\\[\\]])(${respond})(?:\\b|\\s|$|[-,.'"<>{}\\[\\]])`, 'i');
@@ -157,6 +169,11 @@ module.exports = function (robot) {
 
 	function normalizeTrigger(trigger) {
 		return trigger.trim().toLowerCase();
+	}
+
+	function isMessageAllowedInRoom(room, name) {
+		const respond = Responds.findOne({ name });
+		return !respond || respond.room === null || respond.room === room;
 	}
 
 	function migrate () {
@@ -171,17 +188,14 @@ module.exports = function (robot) {
 
 			function () {
 				if (robot.brain.get('responds')) {
-					let responds = robot.brain.get('responds') || Object.create(null);
+					const responds = robot.brain.get('responds') || Object.create(null);
 
-					robot.brain.set('responds', Object.keys(responds).reduce((out, key) => {
-						const value = responds[key];
-
-						if (typeof value !== 'object') {
-							out[key] = { value, rooms: [] };
-						}
-
-						return out;
-					}, Object.create(null)));
+					robot.brain.set('responds', Object.keys(responds)
+						.map((key) => ({
+							name: key,
+							room: null,
+							value: responds[key],
+						}), Object.create(null)));
 				}
 			},
 		];
@@ -203,16 +217,21 @@ module.exports = function (robot) {
 		setMessageHandled(res);
 		const key = normalizeTrigger(res.match[1]);
 
-		brain.unsetRespondRoom(key, res.message.room);
-		res.reply(`respond to ${key} deleted from room ${res.message.room}`);
+		if (Responds.findOne({ name: key, room: res.message.room })) {
+			Responds.remove({ name: key, room: res.message.room });
+			res.reply(`respond to ${key} deleted from room ${res.message.room}`);
+			return;
+		}
+
+		res.reply('respond not found');
 	});
 
 	robot.respond(/delete\s+respond\s+to\s+(.+)/, (res) => {
 		setMessageHandled(res);
 		const key = normalizeTrigger(res.match[1]);
 
-		if (brain.get(key)) {
-			brain.unset(key);
+		if (Responds.findOne({ name: key })) {
+			Responds.remove({ name: key });
 
 			res.reply(`respond to ${key} deleted`);
 			return;
@@ -222,13 +241,13 @@ module.exports = function (robot) {
 	});
 
 	robot.respond(/list\s+responds/, (res) => {
-		let responds = brain.getAll();
+		const responds = Responds.getAll();
 
 		if (!responds.length) {
 			return res.reply('No respond has been set yet.');
 		}
 
-		res.reply(responds.map((respond) => `respond to ${respond[0]} with ${respond[1]}`).join('\n'));
+		res.reply(responds.map((respond) => `respond to ${respond.name} with ${respond.value}`).join('\n'));
 	});
 
 	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/i, (res) => {
@@ -241,13 +260,13 @@ module.exports = function (robot) {
 		let updated = false;
 
 		// delete previous respond
-		if (brain.get(key).value) {
-			brain.unset(key);
+		if (Responds.findOne({ name: key })) {
+			Responds.remove({ name: key, room: res.message.room });
 			updated = true;
 		}
 
 		// by postponing add, the robot listen will not respond to the query.
-		brain.set(key, value, here && res.message.room);
+		Responds.upsert({ name: key, value, room: here && res.message.room || null });
 
 		res.reply(updated ? 'Respond updated' : 'Respond added');
 		robot.logger.debug(`new respond added ${key}=${value}`);
@@ -258,23 +277,18 @@ module.exports = function (robot) {
 			return null;
 		}
 
-		const responds = Array.from(new Set(brain.getAll().map(a => a[0])));
+		const responds = Responds.getAll();
 
 		if (responds.length < 1) {
 			return null;
 		}
 
-		const match = Array.from(responds).find((matcher) => {
-			const re = createRespondRegexp(matcher);
-			return re.test(res.text);
-		});
-
-		return match && match.toLowerCase();
+		return Responds.findOne({ match: res.text, room: res.room });
 	}, (res) => {
 		const match = res.match;
-		const text = brain.get(res.match).value;
+		const text = match.value;
 
-		const allowedInRoom = isMessageAllowedInRoom(brain, res.message.room, match);
+		const allowedInRoom = isMessageAllowedInRoom(res.message.room, match);
 
 		if (allowedInRoom) {
 			res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
