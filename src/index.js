@@ -53,6 +53,10 @@ module.exports = function (robot) {
 			return createRespondRegexp(this.name);
 		},
 
+		isEligibleForRoom(room) {
+			return this.room === room || !this.room;
+		},
+
 		toObject() {
 			return {
 				room: this.room || null,
@@ -71,10 +75,6 @@ module.exports = function (robot) {
 
 		function areRespondsEqual(res1, res2) {
 			return res1.name === res2.name && res1.room === res2.room;
-		}
-
-		function isRespondEligibleForRoom(respond, room) {
-			return respond.room === room || !respond.room;
 		}
 
 		function saveRespond(respond) {
@@ -101,7 +101,7 @@ module.exports = function (robot) {
 
 			const search = match ? (respond) => respond.toRegExp().test(match) : (respond) => respond.name === name;
 
-			const respond = responds.find(respond => search(respond) && isRespondEligibleForRoom(respond, room));
+			const respond = responds.find(respond => search(respond) && respond.isEligibleForRoom(room));
 
 			return respond;
 		}
@@ -115,7 +115,7 @@ module.exports = function (robot) {
 				const responds = Responds.getAll();
 
 				return responds
-					.filter(respond => respond.name === name && isRespondEligibleForRoom(respond, room));
+					.filter(respond => respond.name === name && respond.isEligibleForRoom(respond, room));
 			},
 
 			upsert({ name, value, room = null }) {
