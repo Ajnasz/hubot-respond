@@ -233,10 +233,19 @@ module.exports = function (robot) {
 			return res.reply('No respond has been set yet.');
 		}
 
-		res.reply(responds.map((respond) => `respond to ${respond.name} with ${respond.value}`).join('\n'));
+		res.reply(
+			responds.filter(respond => respond.isEligibleForRoom(res.message.room))
+			.map((respond) => {
+				const out = `respond to ${respond.name} with ${respond.value}`;
+				if (respond.room) {
+					return `here ${out}`;
+				}
+
+				return out;
+			}).join('\n'));
 	});
 
-	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/i, (res) => {
+	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/, (res) => {
 		setMessageHandled(res);
 
 		const key = normalizeTrigger(res.match[2]);
