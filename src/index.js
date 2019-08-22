@@ -14,7 +14,6 @@
 //   hubot respond to {a text} with {value} - Creates a respond to respond_to and responds with value
 //   hubot here respond to {a text} with {value} - Creates a respond to respond_to and responds with value but only in the current room
 //   hubot delete respond to {a text} - Deletes respond respond_to
-//   hubot from here delete respond to {a text} - Deletes respond respond_to
 //   hubot list responds - Lists all responds
 
 
@@ -212,19 +211,6 @@ module.exports = function (robot) {
 
 		robot.logger.debug('last migrated', robot.brain.get('responds_migrations'));
 	}
-
-	robot.respond(/from\s+here\s+delete\s+respond\s+to\s+(.+)/, (res) => {
-		setMessageHandled(res);
-		const key = normalizeTrigger(res.match[1]);
-
-		if (Responds.findOne({ name: key, room: res.message.room })) {
-			Responds.remove({ name: key, room: res.message.room });
-			res.reply(`respond to ${key} deleted from room ${res.message.room}`);
-			return;
-		}
-
-		res.reply('respond not found');
-	});
 
 	robot.respond(/delete\s+respond\s+to\s+(.+)/, (res) => {
 		setMessageHandled(res);
