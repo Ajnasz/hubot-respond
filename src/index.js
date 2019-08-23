@@ -95,12 +95,16 @@ module.exports = function (robot) {
 			return respond;
 		}
 
+		function isRespondMatching(respond, name, room = null, match = null) {
+			const search = match ? (respond) => respond.toRegExp().test(match) : (respond) => respond.name === name;
+
+			return search(respond) && respond.isEligibleForRoom(room);
+		}
+
 		function findRespond(name, room = null, match = null) {
 			const responds = Responds.getAll();
 
-			const search = match ? (respond) => respond.toRegExp().test(match) : (respond) => respond.name === name;
-
-			const respond = responds.find(respond => search(respond) && respond.isEligibleForRoom(room));
+			const respond = responds.find(respond => isRespondMatching(respond, name, room, match));
 
 			return respond;
 		}
@@ -114,7 +118,7 @@ module.exports = function (robot) {
 				const responds = Responds.getAll();
 
 				return responds
-					.filter(respond => respond.name === name && respond.isEligibleForRoom(respond, room));
+					.filter(respond => isRespondMatching(respond, name, room));
 			},
 
 			upsert({ name, value, room = null }) {
@@ -124,9 +128,9 @@ module.exports = function (robot) {
 			remove({ name, room = null }) {
 				const responds = Responds.getAll();
 
-				robot.brain.set('responds', responds.filter((respond) => {
-					return !(respond.name === name && (!room || respond.room === room));
-				}).map(r => r.toObject()));
+				robot.brain.set('responds', responds
+					.filter((respond) => !isRespondMatching(respond, name, room))
+					.map(r => r.toObject()));
 			},
 
 			getAll() {
@@ -216,9 +220,8 @@ module.exports = function (robot) {
 		setMessageHandled(res);
 		const key = normalizeTrigger(res.match[1]);
 
-		if (Responds.findOne({ name: key })) {
-			Responds.remove({ name: key });
-
+		if (Responds.findOne({ name: key, room: res.message.room })) {
+			Responds.remove({ name: key, room: res.message.room });
 			res.reply(`respond to ${key} deleted`);
 			return;
 		}

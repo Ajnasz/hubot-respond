@@ -225,7 +225,7 @@ describe('hubot-respond', function () {
 					room.user.say('alice', '@hubot here respond to helo with Helo1'),
 					room2.user.say('alice', '@hubot here respond to helo with Helo2'),
 				])
-					.then(() => room.user.say('alice', '@hubot from here delete respond to helo'))
+					.then(() => room.user.say('alice', '@hubot delete respond to helo'))
 					.then(() => room2.user.say('jim', 'helo'))
 					.then(() => {
 						const actual = lastMessage(room2);
@@ -233,10 +233,10 @@ describe('hubot-respond', function () {
 
 						return msgEqual(actual, expected);
 					})
-					.then(() => room.user.say('jim', 'helo'))
+					.then(() => room.user.say('jon', 'helo'))
 					.then(() => {
 						const actual = lastMessage(room);
-						const expected = ['jim', 'helo'];
+						const expected = ['jon', 'helo'];
 
 						return msgEqual(actual, expected);
 					});
