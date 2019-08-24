@@ -216,7 +216,7 @@ module.exports = function (robot) {
 		robot.logger.debug('last migrated', robot.brain.get('responds_migrations'));
 	}
 
-	robot.respond(/delete\s+respond\s+to\s+(.+)/, (res) => {
+	robot.respond(/delete\s+respond\s+to\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 		const key = normalizeTrigger(res.match[1]);
 
@@ -229,7 +229,7 @@ module.exports = function (robot) {
 		res.reply('respond not found');
 	});
 
-	robot.respond(/list\s+responds/, (res) => {
+	robot.respond(/list\s+responds/i, (res) => {
 		const responds = Responds.getAll();
 
 		if (!responds.length) {
@@ -248,7 +248,7 @@ module.exports = function (robot) {
 			}).join('\n'));
 	});
 
-	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/, (res) => {
+	robot.respond(/(here\s+)?respond\s+to\s+(.+?)\s+with\s+(.+)/i, (res) => {
 		setMessageHandled(res);
 
 		const key = normalizeTrigger(res.match[2]);
