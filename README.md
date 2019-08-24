@@ -12,6 +12,8 @@ Hubot script to respond to any message with something you defined.
 
 `hubot respond to A TEXT with VALUE` - Creates a new respond
 
+`hubot here respond to A TEXT with VALUE` - Creates a new respond but only for the current room
+
 `hubot delete respond to A TEXT` - Deletes a respond
 
 `hubot list responds` - Lists all responds
