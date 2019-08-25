@@ -16,6 +16,8 @@ Hubot script to respond to any message with something you defined.
 
 `hubot delete respond to A TEXT` - Deletes a respond
 
+`hubot from here delete respond to A TEXT` - Deletes a respond
+
 `hubot list responds` - Lists all responds
 
 ### Example:

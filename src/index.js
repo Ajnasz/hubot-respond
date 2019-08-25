@@ -11,9 +11,10 @@
 //   None
 //
 // Commands:
-//   hubot respond to {a text} with {value} - Creates a respond to respond_to and responds with value
-//   hubot here respond to {a text} with {value} - Creates a respond to respond_to and responds with value but only in the current room
-//   hubot delete respond to {a text} - Deletes respond respond_to
+//   hubot respond to {a text} with {value} - Creates a respond to {a text} and responds with value {value}
+//   hubot here respond to {a text} with {value} - Creates a respond to {a text} and responds with value {value} but in the current room
+//   hubot delete respond to {a text} - Deletes respond to {a text}
+//   hubot from here delete respond to {a text} - Deletes respond to {a text} from the current room
 //   hubot list responds - Lists all responds
 
 
