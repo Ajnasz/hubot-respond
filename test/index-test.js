@@ -220,12 +220,41 @@ describe('hubot-respond', function () {
 					});
 			});
 
+			it('should respond with the first room message', () => {
+				room.user.say('alice', '@hubot respond to helo with Helo0')
+					.then(() => room.user.say('alice', '@hubot here respond to helo with Helo1'))
+					.then(() => room.user.say('john', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room);
+						const expected = ['hubot', 'Helo1'];
+
+						return msgEqual(actual, expected);
+					});
+			});
+
+			// this can not be tested with the current hubot-test-helper
+			// because it creates a new robot for each room, however our robot
+			// can listen on many room as one instance
+			// https://github.com/mtsmfm/hubot-test-helper/issues/32
+			it.skip('should respond with the global message if no match in room', () => {
+				return room.user.say('alice', '@hubot respond to helo with Helo0')
+					.then(() => room.user.say('alice', '@hubot here respond to helo with Helo1'))
+					.then(() => room.user.say('john', 'helo'))
+					.then(() => {
+						const actual = lastMessage(room2);
+						const expected = ['hubot', 'Helo0'];
+
+						return msgEqual(actual, expected);
+					});
+			});
+
 			it('sould delete from room', () => {
 				return Promise.all([
+					room.user.say('alice', '@hubot respond to helo with Helo0'),
 					room.user.say('alice', '@hubot here respond to helo with Helo1'),
 					room2.user.say('alice', '@hubot here respond to helo with Helo2'),
 				])
-					.then(() => room.user.say('alice', '@hubot delete respond to helo'))
+					.then(() => room.user.say('alice', '@hubot from here delete respond to helo'))
 					.then(() => room2.user.say('jim', 'helo'))
 					.then(() => {
 						const actual = lastMessage(room2);

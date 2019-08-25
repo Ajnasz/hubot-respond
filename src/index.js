@@ -52,8 +52,16 @@ module.exports = function (robot) {
 			return createRespondRegexp(this.name);
 		},
 
+		isMatchingWithMessage(msg) {
+			return this.toRegExp().test(msg);
+		},
+
 		isEligibleForRoom(room) {
 			return this.room === room || !this.room;
+		},
+
+		isMatchingWithRoom(room) {
+			return room ? this.room === room : this.room === null;
 		},
 
 		toObject() {
@@ -64,6 +72,10 @@ module.exports = function (robot) {
 			};
 		},
 	};
+
+	function ResponseWriteResult({ updated }) {
+		this.updated = !!updated;
+	}
 
 	const Responds = (function () {
 		if (!robot.brain.get('responds')) {
@@ -76,23 +88,27 @@ module.exports = function (robot) {
 			return res1.name === res2.name && res1.room === res2.room;
 		}
 
-		function saveRespond(respond) {
-			const responds = robot.brain.get('responds') || [];
-			const index = findIndex(responds, res => areRespondsEqual(res, { name: respond.name, room: respond.room }));
-
-			if (index > -1) {
-				responds[index] = respond;
-				robot.brain.set('responds', responds);
-				return;
-			}
-
-			robot.brain.set('responds', responds.concat(respond));
-		}
-
 		function rawRespondToRespond(rawRespond) {
 			const respond = Object.create(Respond);
 			Object.assign(respond, rawRespond);
 			return respond;
+		}
+
+		function saveRespond(respond) {
+			const responds = Responds.getAll();
+			respond = rawRespondToRespond(respond);
+
+			const index = findIndex(responds, res => areRespondsEqual(res, { name: respond.name, room: respond.room }));
+
+			if (index > -1) {
+				responds[index] = respond;
+				robot.brain.set('responds', responds.map(r => r.toObject()));
+				return new ResponseWriteResult({ updated: true });
+			}
+
+			robot.brain.set('responds', responds.concat(respond).map(r => r.toObject()));
+
+			return new ResponseWriteResult({ updated: false });
 		}
 
 		function isRespondMatching(respond, name, room = null, match = null) {
@@ -105,7 +121,6 @@ module.exports = function (robot) {
 			const responds = Responds.getAll();
 
 			const respond = responds.find(respond => isRespondMatching(respond, name, room, match));
-
 			return respond;
 		}
 
@@ -122,7 +137,7 @@ module.exports = function (robot) {
 			},
 
 			upsert({ name, value, room = null }) {
-				saveRespond({ name, value, room });
+				return saveRespond({ name, value, room });
 			},
 
 			remove({ name, room = null }) {
@@ -135,6 +150,7 @@ module.exports = function (robot) {
 
 			getAll() {
 				const responds = robot.brain.get('responds');
+
 				if (responds === null) {
 					return [];
 				}
@@ -174,11 +190,6 @@ module.exports = function (robot) {
 		return trigger.trim().toLowerCase();
 	}
 
-	function isMessageAllowedInRoom(room, name) {
-		const respond = Responds.findOne({ name });
-		return !respond || respond.room === null || respond.room === room;
-	}
-
 	function migrate () {
 		const migrations = [
 			function () {
@@ -216,12 +227,13 @@ module.exports = function (robot) {
 		robot.logger.debug('last migrated', robot.brain.get('responds_migrations'));
 	}
 
-	robot.respond(/delete\s+respond\s+to\s+(.+)/i, (res) => {
+	robot.respond(/(from\s+here\s+)?delete\s+respond\s+to\s+(.+)/i, (res) => {
 		setMessageHandled(res);
-		const key = normalizeTrigger(res.match[1]);
+		const here = res.match[1];
+		const key = normalizeTrigger(res.match[2]);
 
-		if (Responds.findOne({ name: key, room: res.message.room })) {
-			Responds.remove({ name: key, room: res.message.room });
+		if (Responds.findOne({ name: key, room: here && res.message.room })) {
+			Responds.remove({ name: key, room: here && res.message.room });
 			res.reply(`respond to ${key} deleted`);
 			return;
 		}
@@ -255,18 +267,10 @@ module.exports = function (robot) {
 		const value = res.match[3].trim();
 		const here = !!res.match[1];
 
-		let updated = false;
-
-		// delete previous respond
-		if (Responds.findOne({ name: key })) {
-			Responds.remove({ name: key, room: res.message.room });
-			updated = true;
-		}
-
 		// by postponing add, the robot listen will not respond to the query.
-		Responds.upsert({ name: key, value, room: here && res.message.room || null });
+		const writeRes = Responds.upsert({ name: key, value, room: here && res.message.room || null });
 
-		res.reply(updated ? 'Respond updated' : 'Respond added');
+		res.reply(writeRes.updated ? 'Respond updated' : 'Respond added');
 		robot.logger.debug(`new respond added ${key}=${value}`);
 	});
 
@@ -281,17 +285,20 @@ module.exports = function (robot) {
 			return null;
 		}
 
-		return Responds.findOne({ match: res.text, room: res.room });
+		const currentRoom = res.room;
+		const matchForRoom = responds.find(respond => respond.isMatchingWithMessage(res.text) && currentRoom === respond.room);
+
+		if (matchForRoom) {
+			return matchForRoom;
+		}
+
+		return responds.find(respond => respond.isMatchingWithMessage(res.text) && respond.room === null);
 	}, (res) => {
 		const match = res.match;
 		const text = match.value;
 
-		const allowedInRoom = isMessageAllowedInRoom(res.message.room, match);
+		res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
 
-		if (allowedInRoom) {
-			res.send(formatMessage(text, { sender: res.message.user.name, room: res.message.room }));
-
-			robot.logger.debug(`respond matched: ${match}`);
-		}
+		robot.logger.debug(`respond matched: ${match}`);
 	});
 };
