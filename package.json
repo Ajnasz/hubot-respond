@@ -1,6 +1,6 @@
 {
   "name": "hubot-respond",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Respond to any message with something",
   "main": "index.js",
   "scripts": {
